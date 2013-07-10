@@ -10,8 +10,15 @@
 function commerce_worldnet_hpp_menu() {
   $items = array();
 
-  // The WorldNet HPP callback URL. Access is public.
-  $items['worldnet-hpp/response/%commerce_order'] = array(
+  // The WorldNet 'background validation' URL.
+  $items['worldnet/background'] = array(
+    'page callback' => 'commerce_worldnet_hpp_process_response',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  // The WorldNet 'receipt page' URL.
+  $items['worldnet/response/%commerce_order'] = array(
     'page callback' => 'commerce_worldnet_hpp_process_response',
     'access callback' => 'commerce_order_access',
     'access arguments' => array('view', 2),
@@ -157,7 +164,7 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
 
   // Get the URL for the response from WorldNet.
-  $response_url = url('worldnet-hpp/response/' . $order->order_id, array('absolute' => TRUE));
+  $response_url = url('worldnet/response/' . $order->order_id, array('absolute' => TRUE));
 
   // Define the date/time that encodes the hash.
   $date_time = date('d-m-Y:H:i:s:000');
@@ -224,9 +231,12 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
 }
 
 /**
- * Menu callback for 'commerce-worldnet/response'.
+ * Menu callback to process the WorldNet response.
  */
 function commerce_worldnet_hpp_process_response() {
+
+  // If the request is being made in the 'background', then it will be via POST.
+  $background = $_SERVER['REQUEST_METHOD'] == 'POST';
 
   // Check that all the required parameters exist.
   $required_parameters = array(
@@ -241,7 +251,9 @@ function commerce_worldnet_hpp_process_response() {
   );
   $diff = array_diff($required_parameters, array_keys($_REQUEST));
   if (count($diff) > 0) {
-    drupal_set_message(t('Missing parameters in payment gateway response.'), 'error');
+    if (!$background) {
+      drupal_set_message(t('Missing parameters in payment gateway response.'), 'error');
+    }
     watchdog('commerce_worldnet_hpp', 'WorldNet response contains missing parameters: @params.', array(
       '@params' => implode(', ', $diff),
     ), WATCHDOG_WARNING);
@@ -251,7 +263,9 @@ function commerce_worldnet_hpp_process_response() {
   // Load the order that the response refers to.
   $order = commerce_order_load_by_number($_REQUEST['ORDERID']);
   if (!$order) {
-    drupal_set_message(t('Nonexistent order number in payment gateway response.'), 'error');
+    if (!$background) {
+      drupal_set_message(t('Nonexistent order number in payment gateway response.'), 'error');
+    }
     watchdog('commerce_worldnet_hpp', 'WorldNet response returned data for nonexistent order number @on.', array(
       '@on' => $_REQUEST['ORDERID'],
     ), WATCHDOG_WARNING);
@@ -373,6 +387,13 @@ function commerce_worldnet_hpp_process_response() {
     )));
   }
 
+  // For background validation, return the string 'OK'.
+  if ($background) {
+    echo 'OK';
+    drupal_exit();
+  }
+
+  // Otherwise redirect the user to the next checkout pane.
   drupal_goto('checkout/' . $order->order_id . '/payment');
 
 }
