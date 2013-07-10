@@ -72,6 +72,7 @@ function _commerce_worldnet_hpp_default_settings() {
     'worldnet_hpp_mid' => '',
     'worldnet_hpp_terminal_id' => '',
     'worldnet_hpp_shared_secret' => '',
+    'worldnet_hpp_email_receipt' => 0,
   );
 }
 
@@ -150,6 +151,12 @@ function commerce_worldnet_hpp_settings_form($settings = NULL) {
     '#size' => 30,
     '#required' => TRUE,
   );
+  $form['worldnet_hpp_email_receipt'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Email a receipt'),
+    '#description' => t('If enabled, WorldNet will send an email receipt for the payment to the order email address.'),
+    '#default_value' => $settings['worldnet_hpp_email_receipt'],
+  );
   return $form;
 }
 
@@ -191,8 +198,12 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
     'AMOUNT' => $amount,
     'CURRENCY' => $currency_code,
     'ORDERID' => $order->order_number,
-    'EMAIL' => $order->mail,
   );
+
+  // Allow WorldNet to send a receipt to the order email address, if enabled.
+  if (!empty($settings['worldnet_hpp_email_receipt'])) {
+    $hidden_data['EMAIL'] = $order->mail;
+  }
 
   // Get the billing address.
   $billing_address = $order_wrapper->commerce_customer_billing->commerce_customer_address->value();
