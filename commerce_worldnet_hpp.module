@@ -259,6 +259,8 @@ function commerce_worldnet_hpp_process_response() {
     'APPROVALCODE',
     'TERMINALID',
     'HASH',
+    'form_id',
+    'form_token',
   );
   $diff = array_diff($required_parameters, array_keys($_REQUEST));
   if (count($diff) > 0) {
@@ -315,11 +317,22 @@ function commerce_worldnet_hpp_process_response() {
     return MENU_ACCESS_DENIED;
   }
 
+  // Check the form token that was passed through from the redirect form, for
+  // non-background requests.
+  if (!$background && !drupal_valid_token($_REQUEST['form_token'], $_REQUEST['form_id'])) {
+    watchdog('commerce_worldnet_hpp', 'Form token mismatch in response for order @order_id (#@order_number).', array(
+      '@order_id' => $order->order_id,
+      '@order_number' => $order->order_number,
+    ), WATCHDOG_ERROR);
+    return MENU_ACCESS_DENIED;
+  }
+
   // Check whether this transaction has already been recorded, if so, load it
   // fully to check that it actually exists.
   $select = db_select('commerce_worldnet_hpp', 'cwh')
     ->fields('cwh')
-    ->condition('unique_ref', $_REQUEST['UNIQUEREF']);
+    ->condition('unique_ref', $_REQUEST['UNIQUEREF'])
+    ->condition('order_id', $order->order_id);
   $record = $select->execute()->fetch();
   if ($record) {
     $transaction = commerce_payment_transaction_load($record->transaction_id);
