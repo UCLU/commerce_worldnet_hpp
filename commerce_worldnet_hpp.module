@@ -11,10 +11,10 @@ function commerce_worldnet_hpp_menu() {
   $items = array();
 
   // The WorldNet HPP callback URL. Access is public.
-  $items['worldnet-hpp/response'] = array(
+  $items['worldnet-hpp/response/%commerce_order'] = array(
     'page callback' => 'commerce_worldnet_hpp_process_response',
-    'page arguments' => array(),
-    'access callback' => TRUE,
+    'access callback' => 'commerce_order_access',
+    'access arguments' => array('view', 2),
     'type' => MENU_CALLBACK,
   );
 
@@ -157,7 +157,7 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
 
   // Get the URL for the response from WorldNet.
-  $response_url = url('worldnet-hpp/response', array('absolute' => TRUE));
+  $response_url = url('worldnet-hpp/response/' . $order->order_id, array('absolute' => TRUE));
 
   // Define the date/time that encodes the hash.
   $date_time = date('d-m-Y:H:i:s:000');
