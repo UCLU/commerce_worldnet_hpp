@@ -98,5 +98,4 @@ function commerce_worldnet_hpp_schema() {
  */
 function commerce_worldnet_hpp_uninstall() {
   variable_del('commerce_worldnet_hpp_title');
-  variable_del('commerce_worldnet_hpp_abandoned_order_interval');
 }
