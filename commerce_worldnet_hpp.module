@@ -368,9 +368,11 @@ function commerce_worldnet_hpp_process_response() {
     db_insert('commerce_worldnet_hpp')
       ->fields($fields)
       ->execute();
+    commerce_payment_redirect_pane_next_page($order, t('Updated after transaction @txn.', array(
+      '@txn' => $transaction->transaction_id,
+    )));
   }
 
-  commerce_payment_redirect_pane_next_page($order);
   drupal_goto('checkout/' . $order->order_id . '/payment');
 
 }
