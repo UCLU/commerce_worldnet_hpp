@@ -371,5 +371,6 @@ function commerce_worldnet_hpp_process_response() {
   }
 
   commerce_payment_redirect_pane_next_page($order);
+  drupal_goto('checkout/' . $order->order_id . '/payment');
 
 }
