@@ -310,14 +310,14 @@ function commerce_worldnet_hpp_process_response() {
 
     // Build the 'payload' to save with the transaction.
     $payload = $_REQUEST;
-    // Don't save the response hash, or Drupal form IDs or form tokens.
-    unset($payload['HASH'], $payload['form_token'], $payload['form_id'], $payload['form_build_id']);
-    // Encrypt the card number from the response (even though most of it is
-    // starred out).
-    if (isset($payload['CARDNUMBER'])) {
-      $payload['CARDNUMBER_ENC'] = encrypt($payload['CARDNUMBER']);
-      unset($payload['CARDNUMBER']);
-    }
+    // Don't save the response hash, card number, or Drupal form IDs/tokens.
+    unset(
+      $payload['HASH'],
+      $payload['CARDNUMBER'],
+      $payload['form_token'],
+      $payload['form_id'],
+      $payload['form_build_id']
+    );
 
     // Get the currency code.
     $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
