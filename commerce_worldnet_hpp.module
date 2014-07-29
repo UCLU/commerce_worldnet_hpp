@@ -192,16 +192,19 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
   $hidden_data = array(
     'DESCRIPTION' => t('Order number: @number', array('@number' => $order->order_number)),
     'TERMINALID' => $settings['worldnet_hpp_terminal_id'],
+    'TERMINALTYPE' => 2,
+    'TRANSACTIONTYPE' => 7,
     'RECEIPTPAGEURL' => $response_url,
     'DATETIME' => $date_time,
     'HASH' => $hash,
     'AMOUNT' => $amount,
     'CURRENCY' => $currency_code,
     'ORDERID' => $order->order_number,
+    'IPADDRESS' => ip_address(),
   );
 
   // Allow WorldNet to send a receipt to the order email address, if enabled.
-  if (!empty($settings['worldnet_hpp_email_receipt'])) {
+  if (!empty($settings['worldnet_hpp_email_receipt']) && $order->mail && valid_email_address($order->mail)) {
     $hidden_data['EMAIL'] = $order->mail;
   }
 
@@ -242,10 +245,18 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
 }
 
 /**
+ * Implements CALLBACK_commerce_payment_method_redirect_form_validate().
+ */
+function commerce_worldnet_hpp_redirect_form_validate($order, $payment_method) {
+  if (isset($_POST['RESPONSECODE']) && $_POST['RESPONSECODE'] != 'A') {
+    return FALSE;
+  }
+}
+
+/**
  * Menu callback to process the WorldNet response.
  */
 function commerce_worldnet_hpp_process_response() {
-
   // If the request is being made in the 'background', then it will be via POST.
   $background = $_SERVER['REQUEST_METHOD'] == 'POST';
 
@@ -264,9 +275,6 @@ function commerce_worldnet_hpp_process_response() {
   );
   $diff = array_diff($required_parameters, array_keys($_REQUEST));
   if (count($diff) > 0) {
-    if (!$background) {
-      drupal_set_message(t('Missing parameters in payment gateway response.'), 'error');
-    }
     watchdog('commerce_worldnet_hpp', 'WorldNet response contains missing parameters: @params.', array(
       '@params' => implode(', ', $diff),
     ), WATCHDOG_WARNING);
@@ -276,9 +284,6 @@ function commerce_worldnet_hpp_process_response() {
   // Load the order that the response refers to.
   $order = commerce_order_load_by_number($_REQUEST['ORDERID']);
   if (!$order) {
-    if (!$background) {
-      drupal_set_message(t('Nonexistent order number in payment gateway response.'), 'error');
-    }
     watchdog('commerce_worldnet_hpp', 'WorldNet response returned data for nonexistent order number @on.', array(
       '@on' => $_REQUEST['ORDERID'],
     ), WATCHDOG_WARNING);
@@ -330,15 +335,15 @@ function commerce_worldnet_hpp_process_response() {
   // Check whether this transaction has already been recorded, if so, load it
   // fully to check that it actually exists.
   $select = db_select('commerce_worldnet_hpp', 'cwh')
-    ->fields('cwh')
+    ->fields('cwh', array('transaction_id'))
     ->condition('unique_ref', $_REQUEST['UNIQUEREF'])
     ->condition('order_id', $order->order_id);
-  $record = $select->execute()->fetch();
-  if ($record) {
-    $transaction = commerce_payment_transaction_load($record->transaction_id);
+  $transaction_id = $select->execute()->fetchField();
+  if ($transaction_id) {
+    $transaction = commerce_payment_transaction_load($transaction_id);
     if (!$transaction) {
       throw new Exception(t('The transaction @txn for WorldNet payment @ref does not exist.', array(
-        '@txn' => $record->transaction_id,
+        '@txn' => $transaction_id,
         '@ref' => $_REQUEST['UNIQUEREF'],
       )));
     }
@@ -406,9 +411,27 @@ function commerce_worldnet_hpp_process_response() {
     db_insert('commerce_worldnet_hpp')
       ->fields($fields)
       ->execute();
-    commerce_payment_redirect_pane_next_page($order, t('Updated after transaction @txn.', array(
-      '@txn' => $transaction->transaction_id,
-    )));
+  }
+
+  // Act on the transaction status.
+  switch ($transaction->status) {
+    case COMMERCE_PAYMENT_STATUS_SUCCESS:
+      commerce_payment_redirect_pane_next_page($order, t('Updated after transaction @txn.', array(
+        '@txn' => $transaction->transaction_id,
+      )));
+      break;
+
+    default:
+      commerce_payment_redirect_pane_previous_page($order);
+      watchdog('commerce_worldnet_hpp', 'Payment failed for order ID @order_id (response: @response)', array(
+        '@order_id' => $order->order_id,
+        '@response' => $_REQUEST['RESPONSETEXT'],
+      ));
+      if (!$background) {
+        drupal_set_message(t('Sorry, your payment failed. Please try again.'), 'warning', FALSE);
+      }
+      break;
+
   }
 
   // For background validation, return the string 'OK'.
@@ -417,7 +440,6 @@ function commerce_worldnet_hpp_process_response() {
     drupal_exit();
   }
 
-  // Otherwise redirect the user to the next checkout pane.
+  // Otherwise, redirect the user to the next payment pane.
   drupal_goto('checkout/' . $order->order_id . '/payment');
-
 }
