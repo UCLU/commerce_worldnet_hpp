@@ -172,6 +172,7 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
 
   // Get the URL for the response from WorldNet.
   $response_url = url('worldnet/response/' . $order->order_id, array('absolute' => TRUE));
+  $validation_url = url('worldnet/background', array('absolute' => TRUE));
 
   // Define the date/time that encodes the hash.
   $date_time = date('d-m-Y:H:i:s:000');
@@ -181,11 +182,13 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
   $currency_code = $order_wrapper->commerce_order_total->currency_code->value();
   $amount = commerce_currency_amount_to_decimal($order_total, $currency_code);
 
-  $hash_string = $settings['worldnet_hpp_terminal_id'] . $order->order_id;
-  $hash_string .= $amount;
-  $hash_string .= date('d-m-Y:H:i:s:000');
-  $hash_string .= $response_url;
-  $hash_string .= $settings['worldnet_hpp_shared_secret'];
+  $hash_string = $settings['worldnet_hpp_terminal_id']
+    . $order->order_number
+    . $amount
+    . $date_time
+    . $response_url
+    . $validation_url
+    . $settings['worldnet_hpp_shared_secret'];
   $hash = md5($hash_string);
 
   // Define the data to be sent via hidden form fields to the payment page.
@@ -195,6 +198,7 @@ function commerce_worldnet_hpp_redirect_form($form, &$form_state, $order, $payme
     'TERMINALTYPE' => 2,
     'TRANSACTIONTYPE' => 7,
     'RECEIPTPAGEURL' => $response_url,
+    'VALIDATIONURL' => $validation_url,
     'DATETIME' => $date_time,
     'HASH' => $hash,
     'AMOUNT' => $amount,
