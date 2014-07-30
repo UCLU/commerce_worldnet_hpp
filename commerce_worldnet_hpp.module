@@ -279,7 +279,7 @@ function commerce_worldnet_hpp_process_response() {
   );
   $diff = array_diff($required_parameters, array_keys($_REQUEST));
   if (count($diff) > 0) {
-    watchdog('commerce_worldnet_hpp', 'WorldNet response contains missing parameters: @params.', array(
+    watchdog('commerce_worldnet_hpp', 'WorldNet response is missing parameters: @params.', array(
       '@params' => implode(', ', $diff),
     ), WATCHDOG_WARNING);
     return MENU_NOT_FOUND;
@@ -300,9 +300,11 @@ function commerce_worldnet_hpp_process_response() {
 
   // Check that the "Terminal ID" matches the one set for the payment method.
   if ($payment_method['settings']['worldnet_hpp_terminal_id'] != $_REQUEST['TERMINALID']) {
-    watchdog('commerce_worldnet_hpp', 'Terminal ID mismatch in response for order @order_id (#@order_number).', array(
+    watchdog('commerce_worldnet_hpp', 'Terminal ID mismatch in response for order @order_id (#@order_number): expected @expected, received @received.', array(
       '@order_id' => $order->order_id,
       '@order_number' => $order->order_number,
+      '@expected' => $payment_method['settings']['worldnet_hpp_terminal_id'],
+      '@received' => $_REQUEST['TERMINALID'],
     ), WATCHDOG_ERROR);
     return MENU_NOT_FOUND;
   }
@@ -432,7 +434,7 @@ function commerce_worldnet_hpp_process_response() {
         '@response' => $_REQUEST['RESPONSETEXT'],
       ));
       if (!$background) {
-        drupal_set_message(t('Sorry, your payment failed. Please try again.'), 'warning', FALSE);
+        drupal_set_message(t('Sorry, your payment failed. Please check your address and payment details, and try again.'), 'warning', FALSE);
       }
       break;
 
