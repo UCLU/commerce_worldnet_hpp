@@ -294,6 +294,11 @@ function commerce_worldnet_hpp_process_response() {
     return MENU_NOT_FOUND;
   }
 
+  // Check the order's payment method.
+  if (!isset($order->data['payment_method']) || $order->data['payment_method'] !== 'worldnet_hpp') {
+    return MENU_NOT_FOUND;
+  }
+
   // Load the payment method instance from the order, so that settings can be
   // extracted.
   $payment_method = commerce_payment_method_instance_load($order->data['payment_method']);
