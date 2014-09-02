@@ -295,7 +295,7 @@ function commerce_worldnet_hpp_process_response() {
   }
 
   // Check the order's payment method.
-  if (!isset($order->data['payment_method']) || $order->data['payment_method'] !== 'worldnet_hpp') {
+  if (!isset($order->data['payment_method']) || strpos($order->data['payment_method'], 'worldnet_hpp') === FALSE) {
     return MENU_NOT_FOUND;
   }
 
